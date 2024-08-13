@@ -8,12 +8,14 @@ var sw = express(); // iniciliaza uma variavel chamada app que possitilitará a 
 sw.use(express.json());//padrao de mensagens em json.
 
 
-sw.use(function (req, res, next) {
+sw.use(function(req, res, next) {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
     res.header('Access-Control-Allow-Methods', 'GET,POST');
     next();
 });
+
+
 
 
 const config = {
@@ -40,96 +42,103 @@ sw.get('/teste', (req, res) => {
 })
 
 
-sw.get('/listendereco', function (req, res, next) {
-
-    postgres.connect(function (err, client, done) {
-
-
-        if (err) {
+sw.get('/listenderecos', function (req, res, next) {
+   
+    postgres.connect(function(err,client,done) {
 
 
-            console.log("Nao conseguiu acessar o  BD " + err);
-            res.status(400).send('{' + err + '}');
-        } else {
+       if(err){
 
 
-            var q = 'select * from tb_endereco';
+           console.log("Nao conseguiu acessar o  BD "+ err);
+           res.status(400).send('{'+err+'}');
+       }else{            
 
-            client.query(q, function (err, result) {
+
+        var q ='select codigo, complemento, cep, nicknamejogador' +
+        ' from tb_endereco order by codigo asc';            
+   
+            client.query(q,function(err,result) {
                 done(); // closing the connection;
-                if (err) {
-                    console.log('retornou 400 no listendereco');
+                if(err){
+                    console.log('retornou 400 no listenderecos');
                     console.log(err);
-
-                    res.status(400).send('{' + err + '}');
-                } else {
+                   
+                    res.status(400).send('{'+err+'}');
+                }else{
 
 
                     //console.log('retornou 201 no /listendereco');
                     res.status(201).send(result.rows);
-                }
+                }          
             });
-        }
+       }      
     });
 });
+
 
 sw.get('/listpatentes', function (req, res, next) {
-
-    postgres.connect(function (err, client, done) {
-
-        if (err) {
-            console.log("Não conseguiu acessar o BD " + err);
-            res.status(400).send('{' + err + '}');
-        } else {
-
-            var q = 'select * from tb_patente';
-
-            client.query(q, function (err, result) {
-                done(); // Fechando a conexão
-                if (err) {
-                    console.log('Retornou 400 no /listpatentes');
+   
+    postgres.connect(function(err,client,done) {
+       if(err){
+           console.log("Nao conseguiu acessar o  BD "+ err);
+           res.status(400).send('{'+err+'}');
+       }else{            
+        var q = "SELECT codigo, nome, quant_min_pontos, cor, logotipo, TO_CHAR(NOW(), 'DD/MM/YYYY HH24:MI:SS') AS datacriacao FROM tb_PATENTE";
+            
+            client.query(q,function(err,result) {
+                done(); // closing the connection;
+                if(err){
+                    console.log('retornou 400 no listpatente');
                     console.log(err);
-
-                    res.status(400).send('{' + err + '}');
-                } else {
-
+                    res.status(400).send('{'+err+'}');
+                }else{
+                    //console.log('retornou 201 no /listpatente');
                     res.status(201).send(result.rows);
-                }
+                }          
             });
-        }
+       }      
     });
 });
+
 
 sw.get('/listjogadores', function (req, res, next) {
+    postgres.connect(function(err,client,done) {
+       if(err){
+           console.log("Nao conseguiu acessar o  BD "+ err);
+           res.status(400).send('{'+err+'}');
+       }else{            
 
-    postgres.connect(function (err, client, done) {
+         var q ='select j.nickname, j.senha, 0 as patentes, e.cep '+
+         'from tb_jogador j, tb_endereco e '+
+         'where e.nicknamejogador=j.nickname order by nickname asc;';
 
-        if (err) {
-            console.log("Não conseguiu acessar o BD " + err);
-            res.status(400).send('{' + err + '}');
-        } else {
+         //Exercício 1: Incluir todas as colunas de tb_endereco
 
-            var q = 'select * from tb_jogador';
-
-            client.query(q, function (err, result) {
-                done(); // Fechando a conexão
-                if (err) {
-                    console.log('Retornou 400 no /listjogadores');
+            client.query(q,async function(err,result) {
+                if(err){
+                    console.log('retornou 400 no listjogadores');
                     console.log(err);
-
-                    res.status(400).send('{' + err + '}');
-                } else {
-
+                    res.status(400).send('{'+err+'}');
+                }else{
+                    for(var i=0; i < result.rows.length; i++){
+                        try{
+                            pj = await client.query('select codpatente from '+
+                                                'tb_jogador_conquista_patente '+
+                                                'where nickname = $1', [result.rows[i].nickname])
+                            result.rows[i].patentes = pj.rows;
+                        } catch (err) {
+                            res.status(400).send('{'+err+')');
+                        }
+                    }
+                    done(); // closing the connection;
+                    //console.log('retornou 201 no /listjogador');
                     res.status(201).send(result.rows);
-                }
+                }          
             });
-        }
+       }      
     });
 });
-
-
-
-
 
 sw.listen(4000, function () {
     console.log('Server is running.. on Port 4000');
