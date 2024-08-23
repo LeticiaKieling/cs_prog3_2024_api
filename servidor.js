@@ -159,10 +159,10 @@ sw.post('/updatepatentes', function (req, res, next) {
             res.status(400).send('{' + err + '}');
         } else {
 
-            var q1 = { 
+            var q1 = {
                 text: 'update tb_patente set nome = $1, quant_min_pontos = $2, cor = $3, logotipo = $4 ' +
-                ' where codigo = $5 returning codigo, nome, quant_min_pontos, ' +
-                'to_char(datacriacao, \'dd/mm/yyyy hh24:mi:ss\') as datacriacao, logotipo ',
+                    ' where codigo = $5 returning codigo, nome, quant_min_pontos, ' +
+                    'to_char(datacriacao, \'dd/mm/yyyy hh24:mi:ss\') as datacriacao, logotipo ',
                 values: [req.body.nome,
                 req.body.quant_min_pontos,
                 req.body.cor,
@@ -192,49 +192,98 @@ sw.post('/updatepatentes', function (req, res, next) {
 });
 
 
+sw.get('/deletepatentes/:codigo', function (req, res) {
+
+
+    postgres.connect(function(err,client,done) {
+        if(err){
+            console.log("Não conseguiu acessar o banco de dados!"+ err);
+            res.status(400).send('{'+err+'}');
+        }else{
+
+
+            var q1 ={
+                text: 'delete from tb_patente where codigo = $1 returning codigo',
+                values: [req.params.codigo]
+            }
+
+
+            client.query( q1 , function(err,result) {
+
+
+                if(err){
+                    console.log(err);
+                    res.status(400).send('{'+err+'}');
+                }else{
+
+
+                    client.query( q1 , function(err,result) {
+               
+                        if(err){
+                            console.log(err);
+                            res.status(400).send('{'+err+'}');
+                        }
+                            })
+                        }
+                    });
+
+
+
+
+                }
+
+
+            });
+
+
+        });
+
+
 sw.get('/listjogadores', function (req, res, next) {
-
-    postgres.connect(function (err, client, done) {
-
-
-        if (err) {
+   
+    postgres.connect(function(err,client,done) {
 
 
-            console.log("Nao conseguiu acessar o  BD " + err);
-            res.status(400).send('{' + err + '}');
-        } else {
-            var q = 'select j.nickname, j.senha, 0 as patentes, e.cep ' +
-                'from tb_jogador j, tb_endereco e ' +
-                'where e.nicknamejogador=j.nickname order by nickname asc;';
-            //exercicio 1: incluir todas as colunas da tb_endereco        
-            client.query(q, async function (err, result) {
-                if (err) {
+       if(err){
+
+
+           console.log("Nao conseguiu acessar o  BD "+ err);
+           res.status(400).send('{'+err+'}');
+       }else{            
+        var q ='select j.nickname, j.senha, 0 as patentes, e.cep '+
+         'from tb_jogador j, tb_endereco e '+
+         'where e.nicknamejogador=j.nickname order by nickname asc;';
+         //exercicio 1: incluir todas as colunas da tb_endereco        
+            client.query(q,async function(err,result) {
+                if(err){
                     console.log('retornou 400 no listjogadores');
                     console.log(err);
-                    res.status(400).send('{' + err + '}');
-                } else {
-                    for (var i = 0; i < result.rows.length; i++) {
-                        try {
-                            pj = await client.query('select codpatente from ' +
-                                'tb_jogador_conquista_patente ' +
-                                'where nickname = $1', [result.rows[i].nickname])
+                    res.status(400).send('{'+err+'}');
+                }else{
+                    for(var i=0; i < result.rows.length; i++){
+                        try{
+                            pj = await client.query('select codpatente from '+
+                                                    'tb_jogador_conquista_patente '+
+                                                    'where nickname = $1', [result.rows[i].nickname])
                             result.rows[i].patentes = pj.rows;
 
 
                         } catch (err) {
 
 
-                            res.status(400).send('{' + err + ')');
+                            res.status(400).send('{'+err+')');
                         }
                     }
                     done(); // closing the connection;
                     //console.log('retornou 201 no /listjogador');
                     res.status(201).send(result.rows);
-                }
+                }          
             });
-        }
+       }      
     });
 });
+
+
 
 
 sw.listen(4000, function () {
